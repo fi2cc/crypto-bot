@@ -20,7 +20,7 @@ coins = ['DOGE-USD', 'SHIB-USD', 'PEPE-USD', 'FLOKI-USD',
          'OP-USD', 'COMP-USD']
 
 # Telegram details (Final)
-TELEGRAM_BOT_TOKEN = '7957867294:AAEiFBoe3fiin1fC9kyeqYVHwCxX7ykRto4'
+TELEGRAM_BOT_TOKEN = '7957867294:AAFPTxMLXeSUFrZAs9ctcV6oTi27oGeF_1U'
 TELEGRAM_CHAT_ID = '1581904774'  # your numeric Chat ID
 
 def send_telegram_message(message):
