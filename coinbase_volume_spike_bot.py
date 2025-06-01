@@ -14,7 +14,7 @@ PRIVATE_KEY = credentials['privateKey']
 client = RESTClient(api_key=API_KEY, api_secret=PRIVATE_KEY)
 
 # Telegram details (your current settings)
-TELEGRAM_BOT_TOKEN = '7957867294:AAEiFBoe3fiin1fC9kyeqYVHwCxX7ykRto4'
+TELEGRAM_BOT_TOKEN = '7957867294:AAFPTxMLXeSUFrZAs9ctcV6oTi27oGeF_1U'
 TELEGRAM_CHAT_ID = '1581904774'
 
 def send_telegram_message(message):
