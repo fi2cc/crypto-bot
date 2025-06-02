@@ -1,0 +1,162 @@
+import os
+import json
+import time
+import requests
+import pandas as pd
+from datetime import datetime, timedelta, timezone
+from coinbase.rest import RESTClient
+from telegram import Update
+from telegram.ext import Updater, MessageHandler, Filters, CallbackContext
+import threading
+import openai
+
+# === Coinbase API ===
+with open('cdp_api_key.json') as f:
+    credentials = json.load(f)
+API_KEY = credentials['name']
+PRIVATE_KEY = credentials['privateKey']
+client = RESTClient(api_key=API_KEY, api_secret=PRIVATE_KEY)
+
+# === Secure Telegram and OpenAI Config ===
+TELEGRAM_BOT_TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
+TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]  # string format
+openai.api_key = os.environ["OPENAI_API_KEY"]
+
+# === Global State ===
+last_signal = {
+    "coin": None,
+    "position_open": False,
+    "entry_price": None,
+    "peak_price": None,
+    "entry_time": None
+}
+
+coins = ['DOGE-USD', 'SHIB-USD', 'PEPE-USD', 'FLOKI-USD',
+         'WIF-USD', 'SOL-USD', 'RNDR-USD', 'APT-USD',
+         'OP-USD', 'COMP-USD']
+
+# === Configurable Parameters ===
+TRAILING_STOP_PCT = 0.10
+RSI_SELL_THRESHOLD = 60
+
+# === Telegram ===
+def send_telegram_message(message):
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        params = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
+        response = requests.post(url, params=params)
+        return response.ok
+    except Exception as e:
+        print(f"Telegram error: {e}")
+        return False
+
+# === GPT-4 Trade Idea ===
+def generate_trade_idea(coin, price_chg, vol_chg):
+    prompt = f"""
+    Coin: {coin}
+    Price Change (24h): {price_chg*100:.2f}%
+    Volume Change: {vol_chg*100:.2f}%
+
+    Given this recent spike, provide:
+    1. Possible reasons for this movement.
+    2. A clear trade recommendation (Buy, Hold, Wait).
+    3. Risks to consider.
+    Keep it concise.
+    """
+
+    response = openai.ChatCompletion.create(
+        model='gpt-4-turbo',
+        messages=[{'role': 'user', 'content': prompt}],
+        max_tokens=300,
+        temperature=0.7
+    )
+
+    return response.choices[0].message.content.strip()
+
+# === Trading Actions ===
+def execute_buy(coin):
+    send_telegram_message(f"🚀 BUY EXECUTED: {coin}")
+    last_signal["position_open"] = True
+    last_signal["entry_time"] = datetime.now()
+
+def execute_sell(coin, reason="Manual"):
+    send_telegram_message(f"🔻 SELL EXECUTED: {coin}\nReason: {reason}")
+    last_signal.update({"position_open": False, "entry_price": None, "peak_price": None, "entry_time": None})
+
+# === Listener ===
+def handle_response(update: Update, context: CallbackContext):
+    user_id = str(update.effective_user.id)
+    message_text = update.message.text.strip().lower()
+    expected_coin = last_signal.get("coin")
+
+    if user_id != TELEGRAM_CHAT_ID:
+        update.message.reply_text("❌ Unauthorized.")
+        return
+
+    if message_text == f"buy {expected_coin.lower()}":
+        if last_signal["position_open"]:
+            update.message.reply_text("⚠️ Position already open.")
+        else:
+            last_signal["entry_price"] = get_current_price(expected_coin + "-USD")
+            last_signal["peak_price"] = last_signal["entry_price"]
+            execute_buy(expected_coin)
+            update.message.reply_text(f"✅ Bought {expected_coin} at {last_signal['entry_price']:.4f}")
+
+    elif message_text == f"sell {expected_coin.lower()}":
+        if not last_signal["position_open"]:
+            update.message.reply_text("⚠️ No open position.")
+        else:
+            execute_sell(expected_coin, "Manual")
+            update.message.reply_text(f"✅ Sold {expected_coin}")
+
+# === Listener Thread ===
+def start_listener():
+    updater = Updater(TELEGRAM_BOT_TOKEN, use_context=True)
+    dp = updater.dispatcher
+    dp.add_handler(MessageHandler(Filters.text & ~Filters.command, handle_response))
+    updater.start_polling()
+    updater.idle()
+
+# === Coinbase Data and Signal Check ===
+def get_current_price(coin):
+    return float(client.get_product_ticker(coin)['price'])
+
+def get_daily_data(coin):
+    end = datetime.now(timezone.utc)
+    start = end - timedelta(days=7)
+    response = client.get_candles(coin, 'ONE_DAY', int(start.timestamp()), int(end.timestamp()))
+    df = pd.DataFrame(response.candles)
+    df['close'] = df['close'].astype(float)
+    df['volume'] = df['volume'].astype(float)
+    return df.sort_values(by='start')
+
+def check_signal(df):
+    if len(df) < 2:
+        return False, 0, 0
+    price_change = (df.iloc[-2]['close'] - df.iloc[-2]['open']) / df.iloc[-2]['open']
+    volume_change = df.iloc[-2]['volume'] / df['volume'][:-1].mean()
+    return price_change >= 0.10 and volume_change >= 1.5, price_change, volume_change
+
+# === Main Trading Loop ===
+def main():
+    while True:
+        try:
+            for coin in coins:
+                df = get_daily_data(coin)
+                signal, price_chg, vol_chg = check_signal(df)
+                if signal:
+                    coin_short = coin.split('-')[0]
+                    trade_idea = generate_trade_idea(coin, price_chg, vol_chg)
+                    msg = f"🚨 Momentum Signal!\n{coin}\n{trade_idea}\nReply: buy {coin_short}"
+                    send_telegram_message(msg)
+                    last_signal.update({"coin": coin_short, "position_open": False})
+                    break
+            auto_sell_check()
+        except Exception as e:
+            print(f"⚠️ Error: {e}")
+        time.sleep(3600)
+
+# === Start ===
+if __name__ == "__main__":
+    threading.Thread(target=main).start()
+    start_listener()
