@@ -1,0 +1,4 @@
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+TELEGRAM_CHAT_ID=your_telegram_user_id_here
+COINBASE_API_KEY=your_coinbase_api_key_here
+COINBASE_SECRET_KEY=your_coinbase_secret_key_here
