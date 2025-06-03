@@ -113,13 +113,15 @@ def generate_trade_idea(market_summary: str) -> str:
         f"{market_summary}\n\n"
         "Provide your insights briefly."
     )
-    response = openai.ChatCompletion.create(
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}],
         max_tokens=250,
         temperature=0.7,
     )
     return response.choices[0].message.content.strip()
+
 
 def summarize_market():
     summaries = []
