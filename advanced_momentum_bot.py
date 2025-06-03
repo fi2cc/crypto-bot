@@ -1,31 +1,40 @@
 from coinbase.rest import RESTClient
 import pandas as pd
 import numpy as np
-import json
+import os
 import requests
 from datetime import datetime, timedelta, timezone
 import time
 
-# Coinbase credentials
-with open('cdp_api_key.json') as f:
-    credentials = json.load(f)
+# Load credentials from environment variables
+COINBASE_API_KEY = os.getenv('COINBASE_API_KEY')
+COINBASE_SECRET_KEY = os.getenv('COINBASE_SECRET_KEY')
+OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+TELEGRAM_BOT_KEY = os.getenv('TELEGRAM_BOT_KEY')
+TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 
-API_KEY = credentials['name']
-PRIVATE_KEY = credentials['privateKey']
-client = RESTClient(api_key=API_KEY, api_secret=PRIVATE_KEY)
+if not all([
+    COINBASE_API_KEY,
+    COINBASE_SECRET_KEY,
+    TELEGRAM_BOT_KEY,
+    TELEGRAM_CHAT_ID,
+]):
+    raise EnvironmentError(
+        "Missing required environment variables for API or Telegram credentials"
+    )
+
+client = RESTClient(api_key=COINBASE_API_KEY, api_secret=COINBASE_SECRET_KEY)
 
 # Momentum coins on Coinbase
 coins = ['DOGE-USD', 'SHIB-USD', 'PEPE-USD', 'FLOKI-USD', 
          'WIF-USD', 'SOL-USD', 'RNDR-USD', 'APT-USD', 
          'OP-USD', 'COMP-USD']
 
-# Telegram details (Final)
-TELEGRAM_BOT_TOKEN = '7957867294:AAFPTxMLXeSUFrZAs9ctcV6oTi27oGeF_1U'
-TELEGRAM_CHAT_ID = '1581904774'  # your numeric Chat ID
+# Telegram details are provided via environment variables above
 
 def send_telegram_message(message):
     try:
-        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+        url = f"https://api.telegram.org/bot{TELEGRAM_BOT_KEY}/sendMessage"
         params = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
         response = requests.post(url, params=params)
         return response.ok
