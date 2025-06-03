@@ -1,10 +1,8 @@
 from coinbase.rest import RESTClient
 import pandas as pd
-import os
 import requests
 from datetime import datetime, timedelta, timezone
 import time
-
 from google.cloud import secretmanager
 import os
 
