@@ -134,6 +134,36 @@ def run_telegram_bot():
     app.add_error_handler(error_handler)
     app.run_polling()
 
+def summarize_market():
+    summaries = []
+    for coin in WATCHED_COINS:
+        df = fetch_candles(coin, 'ONE_HOUR', 48)
+        if len(df) < 2:
+            continue
+        latest = df.iloc[-1]
+        prev = df.iloc[-2]
+        price_change = ((latest['close'] - prev['close']) / prev['close']) * 100
+        summaries.append(f"{coin}: {price_change:.2f}% change in the last hour.")
+    return "\n".join(summaries)
+
+def generate_trade_idea(market_summary: str) -> str:
+    client = openai.OpenAI(api_key=OPENAI_API_KEY)
+    response = client.chat.completions.create(
+        model="gpt-4",
+        messages=[{"role": "user", "content": market_summary}],
+        max_tokens=250,
+        temperature=0.7,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def check_market_with_llm():
+    logging.info("Generating market insights via GPT-4...")
+    market_summary = summarize_market()
+    trade_idea = generate_trade_idea(market_summary)
+    logging.info(f"LLM Trade Idea: {trade_idea}")
+    send_telegram_message(f"🤖 GPT-4 Trade Idea:\n{trade_idea}")
+
 def main():
     check_daily_momentum()
     check_hourly_mean_reversion()
