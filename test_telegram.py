@@ -1,8 +1,8 @@
 import os
 import requests
 
-TELEGRAM_BOT_KEY = os.getenv('TELEGRAM_BOT_KEY')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
+TELEGRAM_BOT_KEY = os.getenv('7957867294:AAEIHtqQjFmU2PPmbpxkw9qPCQaX0hdrgm0')
+TELEGRAM_CHAT_ID = os.getenv('1581904774')
 
 def send_test_message():
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_KEY}/sendMessage"
