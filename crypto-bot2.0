@@ -5,6 +5,7 @@ from coinbase.rest import RESTClient
 from google.cloud import secretmanager
 from datetime import datetime, timedelta, timezone
 import logging
+import openai  # Ensure openai is imported clearly at top
 
 logging.basicConfig(level=logging.INFO)
 
@@ -21,10 +22,11 @@ COINBASE_API_KEY = get_secret("COINBASE_API_KEY")
 COINBASE_SECRET_KEY = get_secret("COINBASE_SECRET_KEY")
 TELEGRAM_BOT_KEY = get_secret("TELEGRAM_BOT_KEY")
 TELEGRAM_CHAT_ID = get_secret("TELEGRAM_CHAT_ID")
+OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
+openai.api_key = OPENAI_API_KEY
 
 client = RESTClient(api_key=COINBASE_API_KEY, api_secret=COINBASE_SECRET_KEY)
 
-# Enhanced Coins list (popular + emerging)
 WATCHED_COINS = [
     'BTC-USD', 'ETH-USD', 'SOL-USD', 'RNDR-USD', 'APT-USD', 'ARB-USD', 
     'OP-USD', 'DOGE-USD', 'SHIB-USD', 'PEPE-USD', 'AVAX-USD', 'ADA-USD'
@@ -34,7 +36,6 @@ def send_telegram_message(message: str):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_KEY}/sendMessage"
     requests.post(url, params={"chat_id": TELEGRAM_CHAT_ID, "text": message})
 
-# Fetch candle data
 def fetch_candles(coin, granularity, period_hours):
     end = datetime.now(timezone.utc)
     start = end - timedelta(hours=period_hours)
@@ -49,7 +50,6 @@ def fetch_candles(coin, granularity, period_hours):
         'volume': float(c['volume'])
     } for c in response.candles]).sort_values('time')
 
-# Momentum Check (Daily)
 def check_daily_momentum():
     logging.info("Checking daily momentum...")
     for coin in WATCHED_COINS:
@@ -65,7 +65,6 @@ def check_daily_momentum():
             logging.info(msg)
             send_telegram_message(msg)
 
-# Mean Reversion Check (Hourly)
 def check_hourly_mean_reversion():
     logging.info("Checking hourly mean reversion opportunities...")
     for coin in WATCHED_COINS:
@@ -80,7 +79,6 @@ def check_hourly_mean_reversion():
             logging.info(msg)
             send_telegram_message(msg)
 
-# RSI (Relative Strength Index) Strategy
 def calculate_rsi(series, period=14):
     delta = series.diff(1).dropna()
     gain = delta.where(delta > 0, 0.0)
@@ -106,17 +104,6 @@ def check_rsi():
             msg = f"📈 RSI Overbought Alert: {coin}\nRSI: {rsi:.2f} (Possible Sell)"
             logging.info(msg)
             send_telegram_message(msg)
-
-# Main execution loop
-def main():
-    check_daily_momentum()
-    check_hourly_mean_reversion()
-    check_rsi()
-    check_market_with_llm()  # <-- Add this line explicitly
-
-# Fetch OpenAI API key securely
-OPENAI_API_KEY = get_secret("OPENAI_API_KEY")
-openai.api_key = OPENAI_API_KEY
 
 def generate_trade_idea(market_summary: str) -> str:
     prompt = (
@@ -152,6 +139,13 @@ def check_market_with_llm():
     trade_idea = generate_trade_idea(market_summary)
     logging.info(f"LLM Trade Idea: {trade_idea}")
     send_telegram_message(f"🤖 GPT-4 Trade Idea:\n{trade_idea}")
+
+# Main execution loop (explicitly placed at the end)
+def main():
+    check_daily_momentum()
+    check_hourly_mean_reversion()
+    check_rsi()
+    check_market_with_llm()
 
 if __name__ == '__main__':
     main()
