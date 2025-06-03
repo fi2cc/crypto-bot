@@ -7,11 +7,13 @@ from google.cloud import secretmanager
 import os
 
 def get_secret(secret_name, version="latest"):
-    project_id = os.environ["GCP_PROJECT_ID"]
+    project_id = os.getenv("GCP_PROJECT_ID")
+    if not project_id:
+        raise EnvironmentError("GCP_PROJECT_ID is not set.")
     client = secretmanager.SecretManagerServiceClient()
     name = f"projects/{project_id}/secrets/{secret_name}/versions/{version}"
     response = client.access_secret_version(request={"name": name})
-    return response.payload.data.decode('UTF-8')
+    return response.payload.data.decode("UTF-8")
 
 # Retrieve secrets explicitly
 os.environ["COINBASE_API_KEY"] = get_secret("COINBASE_API_KEY")
