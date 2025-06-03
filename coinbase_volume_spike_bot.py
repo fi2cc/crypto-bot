@@ -5,6 +5,23 @@ import requests
 from datetime import datetime, timedelta, timezone
 import time
 
+from google.cloud import secretmanager
+import os
+
+def get_secret(secret_name, version="latest"):
+    project_id = os.environ["GCP_PROJECT_ID"]
+    client = secretmanager.SecretManagerServiceClient()
+    name = f"projects/{project_id}/secrets/{secret_name}/versions/{version}"
+    response = client.access_secret_version(request={"name": name})
+    return response.payload.data.decode('UTF-8')
+
+# Retrieve secrets explicitly
+os.environ["COINBASE_API_KEY"] = get_secret("COINBASE_API_KEY")
+os.environ["COINBASE_SECRET_KEY"] = get_secret("COINBASE_SECRET_KEY")
+os.environ["TELEGRAM_BOT_KEY"] = get_secret("TELEGRAM_BOT_KEY")
+os.environ["TELEGRAM_CHAT_ID"] = get_secret("TELEGRAM_CHAT_ID")
+os.environ["OPENAI_API_KEY"] = get_secret("OPENAI_API_KEY")
+
 # Load credentials from environment variables
 COINBASE_API_KEY = os.getenv('COINBASE_API_KEY')
 COINBASE_SECRET_KEY = os.getenv('COINBASE_SECRET_KEY')
