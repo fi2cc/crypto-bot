@@ -147,10 +147,17 @@ def summarize_market():
     return "\n".join(summaries)
 
 def generate_trade_idea(market_summary: str) -> str:
+    prompt = (
+        "You are a crypto trading expert. "
+        "Here is the latest market summary for the last hour:\n\n"
+        f"{market_summary}\n\n"
+        "Suggest a clear, concise trading strategy (buy, sell, hold) for any notable coins, "
+        "with brief explanations for your recommendations."
+    )
     client = openai.OpenAI(api_key=OPENAI_API_KEY)
     response = client.chat.completions.create(
         model="gpt-4",
-        messages=[{"role": "user", "content": market_summary}],
+        messages=[{"role": "user", "content": prompt}],
         max_tokens=250,
         temperature=0.7,
     )
